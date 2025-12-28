@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import gaussian_kde
 from .stats import *
+from ddpm.gaussian_diffusion import *
 
 
 def plot_time_series(sample):
@@ -71,3 +72,111 @@ def plot_structure_flatness(velocities, p_values, tau_values):
     axes[1].legend()
     plt.tight_layout()
     plt.show()
+
+
+def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[0.3,0.6,0.9,1]):
+    """
+    Plot the evolution graphes of forward process for different diffusion steps calculated with tau_ratio:
+        graph 1 : The diffusion step n and the corresponding alpha bar value
+        graph 2 : Time-series of the noisy trajectory Vn
+        graph 3 : Comparison of standardized PDF of δτVi between both Vn and V0 increments at τ=τn
+        graph 4 : Comparison of structure function for p = 2 between both Vn and V0
+        graph 5 : Comparison of structure function for p = 4 between both Vn and V0
+    """
+    # Define the grid of plots
+    fig, axes = plt.subplots(nrows=len(diffusion_steps_ratio), ncols=5, figsize=(90,70))
+    # Define the title of each column
+    col_titles = ['Noise schedule', 'Time series', r'Velocities increments PDF ($\mathcal{\tau}$ = $\mathcal{\tau}_n$)', 'Structure function S(p)τ for p=2', 'Generalized flatness F(p)τ for p=4' ]
+    for i, ax in enumerate(axes[0]):
+        ax.set_title(col_titles[i], fontsize=60)
+
+    betas = get_named_beta_schedule(schedule_name, num_diffusion_steps)
+    device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
+    diffusion_model = GaussianDiffusion(betas, device)
+    noise = th.randn_like(V0)
+
+    # Loop over the different diffusion steps
+    for (i, ratio) in enumerate(diffusion_steps_ratio):
+        n  = int(min(num_diffusion_steps*ratio, num_diffusion_steps-1))
+        n_batch = th.tensor([n] * V0.shape[0])
+        alpha_cumprods = diffusion_model.alphas_cumprod.cpu().numpy()
+        Vn = diffusion_model.forward(V0, n_batch, noise)
+        # Retrieve a sample for plotting the time serie
+        Vn_sample = Vn[0,0,:]
+        # Plot the graph 1
+        sns.lineplot(x = np.arange(num_diffusion_steps),
+                    y = alpha_cumprods,
+                    ax=axes[i,0],
+                    linewidth=3)
+        sns.scatterplot(x = [n],
+                        y = [alpha_cumprods[n].item()],
+                        marker = 'x',
+                        color = 'red',
+                        ax=axes[i,0],
+                        label=f'n = {n}',
+                        s=1500)
+        axes[i,0].set_xlabel('Diffusion step', fontsize=40, labelpad=25)
+        axes[i,0].set_ylabel(r'$\bar{\alpha}_n$', fontsize=50)
+        axes[i,0].tick_params('x', labelsize=35)
+        axes[i,0].tick_params('y', labelsize=35)
+        axes[i,0].legend(fontsize=35)
+        # Plot the graph 2
+        sns.lineplot(x = np.arange(len(Vn_sample)),
+                    y = Vn_sample.cpu().numpy(),
+                    ax=axes[i,1],
+                    linewidth=3,
+                    label = r'$\bar{\alpha}_n$ = ' + f"{alpha_cumprods[n]:.2f}")
+        axes[i,1].set_xlabel('Timestep', fontsize=40, labelpad=25)
+        axes[i,1].set_ylabel('Velocity', fontsize=40, labelpad=25)
+        axes[i,1].tick_params('x', labelsize=35)
+        axes[i,1].tick_params('y', labelsize=35)
+        axes[i,1].legend(fontsize=35)
+        # Plot the graph 3
+        # Calculate Vn and gaussian increments at τ = τn
+        Vn_increments = velocity_increments(Vn, 10).cpu().numpy()
+        V0_increments = velocity_increments(V0, 10).cpu().numpy()
+        Vn_std_increments = Vn_increments / Vn_increments.std()
+        x_values = np.linspace(Vn_std_increments.min(), Vn_std_increments.max(), 1000)
+        # Calculate the kde of both increments and plot values of standardized increments
+        Vn_kde = gaussian_kde(Vn_increments)
+        Vn_values = Vn_kde(x_values)
+        V0_kde = gaussian_kde(V0_increments)
+        V0_values = V0_kde(x_values)
+        sns.lineplot(x = x_values,
+                    y = V0_values,
+                    ax=axes[i,2],
+                    linewidth=3,
+                    color='red',
+                    label='V0')
+        sns.lineplot(x = x_values,
+                y = Vn_values,
+                ax=axes[i,2],
+                linewidth=3,
+                label=f'V{n}')
+        axes[i,2].set_xlabel('δτVi/σ(δτVi)', fontsize=40, labelpad=25)
+        axes[i,2].set_ylabel('PDF of δτVi', fontsize=40, labelpad=25)
+        axes[i,2].tick_params('x', labelsize=35)
+        axes[i,2].tick_params('y', labelsize=35)
+        axes[i,2].legend(fontsize=35)
+        # Plot the graph 4
+        tau_values = [i * 10**j for j in range(3) for i in range(1,10)]
+        structure_V0 = structure_p(V0, 2, tau_values)
+        structure_Vn = structure_p(Vn, 2, tau_values)
+        sns.lineplot(x=tau_values, y=structure_V0, ax=axes[i,3], label=f'V0', marker="o")
+        sns.lineplot(x=tau_values, y=structure_Vn, ax=axes[i,3], label=f'V{n}', marker="o")
+        axes[i,3].set_yscale('log')
+        axes[i,3].set_xscale('log')
+        axes[i,3].set_xlabel('τ')
+        axes[i,3].set_ylabel('S(p)τ')
+        axes[i,3].legend(fontsize=35)
+        # Plot the graph 5
+        flatness_V0 = flatness_p(V0, 4, tau_values)
+        flatness_Vn = flatness_p(Vn, 4, tau_values)
+        sns.lineplot(x=tau_values, y=flatness_V0, ax=axes[i,4], label=f'V0', marker="o")
+        sns.lineplot(x=tau_values, y=flatness_Vn, ax=axes[i,4], label=f'V{n}', marker="o")
+        axes[i,4].set_yscale('log')
+        axes[i,4].set_xscale('log')
+        axes[i,4].set_xlabel('τ')
+        axes[i,4].set_ylabel('F(p)τ')
+        axes[i,4].legend(fontsize=35)
+

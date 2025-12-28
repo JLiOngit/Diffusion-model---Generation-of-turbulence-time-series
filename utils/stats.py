@@ -9,7 +9,7 @@ def velocity_increments(velocities, tau):
 def structure_p(velocities, p, tau_values):
     structure_values = []
     for tau in tau_values :
-        structure_p_tau = np.mean((velocities[:,0,tau:] - velocities[:,0,:-tau])**p)
+        structure_p_tau = ((velocities[:,0,tau:] - velocities[:,0,:-tau])**p).mean().item()
         structure_values.append(structure_p_tau)
     return structure_values
 
