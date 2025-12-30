@@ -5,6 +5,13 @@ import torch as th
 from torch.utils.data import Dataset, DataLoader
 
 
+def normalize(normalized_velocities, max, min):
+    return 2 * (normalized_velocities - min) / (max - min) -1
+
+def denormalize(velocities, max, min):
+    return (velocities + 1) * (max - min) / 2 + min
+
+
 def load_data(dataset_repertory, dataset_name, normalized=False):
     """
     Load the turbulence time series with shape [B x C x T]
@@ -15,7 +22,7 @@ def load_data(dataset_repertory, dataset_name, normalized=False):
         rx1 = np.array(h5f.get('max'))
         velocities = np.array(h5f.get('train')).swapaxes(1, 2)
     if not normalized :    
-        velocities = ((velocities+1)*(rx1-rx0)/2 + rx0)
+        velocities = denormalize(velocities, rx1, rx0)
     return velocities
 
 
@@ -32,12 +39,10 @@ def training_test_split(dataset, training_size=0.8, validation_size=0.1, normali
     if normalization:
         train_min = th.amin(train, dim=(0, 2), keepdim=True)
         train_max = th.amax(train, dim=(0, 2), keepdim=True)
-        def normalize(x):
-            return 2 * (x - train_min) / (train_max - train_min) - 1
-        train = normalize(train)
+        train = normalize(train, train_max, train_min)
         if val is not None:
-            val = normalize(val)
-        test = normalize(test)
+            val = normalize(val, train_max, train_min)
+        test = normalize(test, train_max, train_min)
     return (train, val, test) if val is not None else (train, test)
 
 

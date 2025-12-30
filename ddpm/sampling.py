@@ -47,17 +47,29 @@ class Sample_loop:
             nonzero_mask = (th.tensor(n != 0, device=Vn.device, dtype=Vn.dtype)).view(-1, *([1] * (len(Vn.shape) - 1)))
             noise = th.randn_like(Vn)
             sample = output['predicted mean'] + nonzero_mask * th.sqrt(output['predicted variance']) * noise
-            samples_dict = {'sample':sample, 'predicted V0':output['predicted V0'], 'predicted mean':output['predicted mean'], 'predicted noise':output['predicted noise']}
+            samples_dict = {'sample' : sample,
+                            'predicted V0':output['predicted V0'],
+                            'predicted mean':output['predicted mean'],
+                            'predicted noise':output['predicted noise']}
             return samples_dict
     
-    def run_loop(self):
+    def run_loop_generator(self):
         """
-        Generate samples from the model and yield intermediate samples from each timestep of diffusion.
+        Yield samples at each diffusion step.
         """
+        Vn = self.noise
+        for n in reversed(range(self.num_diffusion_steps)):
+            sample_dict = self.sample_Vnprev(n, Vn)
+            Vn = sample_dict['sample']
+            yield sample_dict
+
+    def run_loop_last_sample(self):
+        """
+        Return the generated sample after all diffusion steps.
+        """
+        Vn = self.noise
         with th.no_grad():
-            diffusion_steps = list(range(self.num_diffusion_steps))[::-1]
-            Vn = self.noise
-            for n in diffusion_steps:
+            for n in reversed(range(self.num_diffusion_steps)):
                 sample_dict = self.sample_Vnprev(n, Vn)
                 Vn = sample_dict['sample']
-                yield sample_dict
+        return Vn
