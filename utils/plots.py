@@ -76,7 +76,7 @@ def plot_structure_flatness(velocities, p_values, tau_values):
 
 def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[0.3,0.6,0.9,1]):
     """
-    Plot the evolution graphes of forward process for different diffusion steps calculated with tau_ratio:
+    Plot the evolution graphes of forward process for different diffusion steps calculated with diffusion_steps_ratio:
         graph 1 : The diffusion step n and the corresponding alpha bar value
         graph 2 : Time-series of the noisy trajectory Vn
         graph 3 : Comparison of standardized PDF of δτVi between both Vn and V0 increments at τ=τn
@@ -184,3 +184,38 @@ def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[
         axes[i,4].tick_params('y', labelsize=30)
         axes[i,4].legend(fontsize=30)
 
+
+def plot_backward(sample_outputs, parameter, model_diffusion, diffusion_steps_ratio=[0, 0.1, 0.2, 0.5, 0.7, 0.9]):
+    """
+    Plot the evolution of predicted previous parameter from the backward process for different diffusion steps calculated with diffusion_steps_ratio.
+    The predicted parameters are :
+        - predicted Vn-1 sample
+        - predicted Vn-1 mean
+        - predicted V0 calculated from the predicted noise
+        - predicted noise added to Vn (except for V0)
+    """
+    N = len(sample_outputs['sample'])
+    diffusion_steps_plot = [int(min(r * N, N - 1)) for r in diffusion_steps_ratio][::-1]
+    fig, axes = plt.subplots(nrows=len(diffusion_steps_ratio), ncols=2, figsize=(25,30))
+    col_titles = ['Diffusion step', f'Vn-1 {parameter} Time Series']
+    for i, ax in enumerate(axes[0]):
+        ax.set_title(col_titles[i], fontsize=20)
+    for (j, step) in enumerate(diffusion_steps_plot):
+        data = sample_outputs[parameter][N - 1 - step].detach().cpu().numpy().flatten()
+        sns.lineplot(x=np.arange(N),
+                    y=model_diffusion.alphas_cumprod.cpu().numpy(),
+                    ax=axes[j, 0], linewidth=2)
+        sns.scatterplot(x=[step],
+                        y=[model_diffusion.alphas_cumprod[step].item()],
+                        marker='x', color='red', s=200,
+                        ax=axes[j, 0])
+        axes[j, 0].set_xlabel('Step', fontsize=16)
+        axes[j, 0].set_ylabel(r'$\bar{\alpha}_n$', fontsize=16)
+        axes[j, 0].tick_params(labelsize=14)
+        sns.lineplot(x = np.arange(len(data)),
+                     y = data,
+                     ax=axes[j,1],
+                     linewidth=2)
+        axes[j, 1].set_xlabel('Timestep', fontsize=16)
+        axes[j, 1].set_ylabel(f'{parameter}', fontsize=16)
+        axes[j, 1].tick_params(labelsize=14)
