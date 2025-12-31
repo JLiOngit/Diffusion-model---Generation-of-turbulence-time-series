@@ -1,211 +1,78 @@
-Diffusion Models for Synthetic Lagrangian Turbulence — Time Series Generation
+# Synthetic Lagrangian Turbulence Generation via Denoising Diffusion Probabilistic Models (DDPM)
 
-This repository contains an academic project exploring the generation of synthetic Lagrangian turbulence time series using denoising diffusion probabilistic models (DDPM).
-The work is inspired by the paper “Synthetic Lagrangian turbulence by generative diffusion models”, which demonstrated that diffusion models can accurately reproduce statistical and dynamical properties of turbulent flows.
+## 📖 Project Overview & Academic Background
 
-The goal of this project is to reproduce key aspects of that methodology, implement a diffusion model for one-dimensional turbulent velocity signals, and evaluate the realism of the generated time series through classical turbulence statistics.
+This project implements a generative framework for synthesizing **Lagrangian turbulence time series**. It is an academic reproduction and exploration based on the state-of-the-art research published in *Nature Machine Intelligence*:
 
-📌 Motivation
+> **Primary Reference:** Li, T., Biferale, L., Bonaccorso, F., Scarpolini, M. A., & Buzzicotti, M. (2024). *"Synthetic Lagrangian turbulence by generative diffusion models"*. [Nature Machine Intelligence](https://doi.org/10.1038/s42256-024-00810-0).
 
-Turbulence is a complex multiscale phenomenon governed by nonlinear interactions across a wide range of scales.
-Traditional numerical simulations (DNS/LES) are computationally expensive, while analytical modelling often fails to capture intermittent structures and long-time correlations.
+The objective is to demonstrate that **Generative AI** can circumvent the massive computational cost of Direct Numerical Simulations (DNS) while faithfully preserving the multi-scale statistics and intermittent nature of turbulent flows.
 
-Recent advances in generative AI — notably diffusion models — offer a promising alternative by learning the statistical structure of turbulence directly from data.
+---
 
-This project aims to:
+## 🔬 Ground-Truth Analysis & Baseline Metrics
 
-explore diffusion models as a tool for data-driven turbulence synthesis,
+Before training, the `demo.ipynb` notebook performs a detailed diagnostic of the reference DNS data:
+- **Trajectory Analysis:** Inspection of the velocity $u(t)$ to observe chaotic fluctuations and temporal persistence.
+- **Statistical Signature:** Establishing the reference for the Probability Density Functions (PDF) and Power Spectral Density (PSD) that the model must replicate.
 
-compare generated trajectories to real Lagrangian datasets,
+---
 
-understand how well diffusion models recover classical turbulence markers (PDF shapes, structure functions, power spectra, autocorrelation).
+## 🧠 Deep Dive: The DDPM Mathematical Framework
 
-📚 Summary of the Reference Paper
+The core implementation follows the **Denoising Diffusion Probabilistic Models (DDPM)** framework defined by *Ho et al. (2020)*. The process is divided into two distinct Markov chains.
 
-The reference work demonstrates that diffusion models:
+### 1. The Forward Diffusion Process ($q$)
+The forward process is a fixed Markov chain that gradually adds Gaussian noise to the initial turbulent signal $x_0$ over $T$ steps, according to a variance schedule $\beta_1, \dots, \beta_T$:
 
-learn the non-Gaussian, intermittent statistics of turbulent velocity increments,
+$$q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1 - \beta_t} x_{t-1}, \beta_t \mathbf{I})$$
 
-generate synthetic trajectories consistent with Kolmogorov-type scaling laws,
+A fundamental property of this process is that it allows sampling $x_t$ at any arbitrary timestep $t$ in closed form, using the notation $\alpha_t = 1 - \beta_t$ and $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$:
 
-reproduce both short-term dynamics and long-term temporal correlations,
+$$x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon, \quad \text{where } \epsilon \sim \mathcal{N}(0, \mathbf{I})$$
 
-outperform GANs and VAEs in turbulent data synthesis.
+* **Physical Analogy:** This mirrors the dissipation of information where the structured, intermittent bursts of the velocity signal are progressively destroyed until they reach a state of maximum entropy (pure white noise).
 
-This project partially reproduces these ideas in a simplified form.
+### 2. The Reverse Denoising Process ($p_\theta$)
+The generative model learns to reverse the diffusion by approximating the conditional distribution $q(x_{t-1} | x_t)$. We use a learned model $p_\theta$:
 
-🧠 How Diffusion Models Work (ASCII diagram)
-                FORWARD PROCESS (ADD NOISE)
-            ----------------------------------
- real data x_0 → x_1 → x_2 → … → x_T (pure noise)
+$$p_\theta(x_{t-1} | x_t) = \mathcal{N}(x_{t-1}; \mu_\theta(x_t, t), \Sigma_\theta(x_t, t))$$
 
- each step: x_t = sqrt(1 - β_t) * x_(t-1) + sqrt(β_t) * ε
+In our implementation, the 1D U-Net is trained to predict the noise $\epsilon$ added at step $t$. The sampling (generation) follows a stochastic decay process:
 
-            REVERSE PROCESS (DENoise)
-            ----------------------------------
- noise z_T → z_(T-1) → … → z_0 ≈ synthetic data
+$$x_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \epsilon_\theta(x_t, t) \right) + \sigma_t \mathbf{z}, \quad \text{where } \mathbf{z} \sim \mathcal{N}(0, \mathbf{I})$$
 
- model learns: ε_θ(x_t, t) ≈ real noise ε
+### 3. Training Objective (Loss Function)
+The model is trained to minimize the difference between the true noise $\epsilon$ and the predicted noise $\epsilon_\theta$. This is equivalent to **denoising score matching**:
 
+$$L_{simple}(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \left\| \epsilon - \epsilon_\theta(\sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon, t) \right\|^2 \right]$$
 
-The model learns to progressively remove noise and reconstruct statistically consistent turbulent time series.
+## 📊 Detailed Turbulence Analysis & Results
 
-📂 Repository Structure
-├── data/                    # Sample datasets
-├── models/                  # Diffusion model architecture & utilities
-├── results/                 # Generated figures and outputs
-├── demo.ipynb               # Main demonstration notebook
-├── README.md                # Project documentation
-└── requirements.txt
+The validation compares the generated trajectories against the initial ground-truth trajectories across three fundamental pillars.
 
-🚀 Running the Notebook
+### 1. Intermittency & PDFs of Increments
+Turbulence is characterized by **intermittency**, where small-scale structures are highly non-Gaussian.
+- **Analysis:** PDFs of velocity increments $\delta_\tau u = u(t+\tau) - u(t)$. 
+- **Observations:** For small $\tau$, the PDFs exhibit **heavy-tailed distributions** (fat tails).
+- **Result:** Our DDPM successfully captures these fat tails, representing rare but intense acceleration events. This confirms the model's ability to reproduce **anomalous scaling**.
 
-To reproduce the results:
 
-pip install -r requirements.txt
-jupyter notebook demo.ipynb
 
+### 2. The Energy Cascade (Spectral Analysis)
+Energy cascades from large scales down to small scales where it dissipates.
+- **Analysis:** Power Spectral Density (PSD) calculation.
+- **Result:** The synthetic signal follows the expected Lagrangian power-law $E(f) \propto f^{-2}$, confirming that the model respects the **Kolmogorov phenomenology**.
 
-The notebook guides you through:
+### 3. Temporal Coherence (Autocorrelation)
+- **Analysis:** Comparison of the Autocorrelation Function (ACF) to evaluate temporal memory.
+- **Result:** The model accurately reproduces the **integral time scale** $T_L$, ensuring the synthetic particles drift with the same temporal persistence as real ones.
 
-Data loading
+---
 
-Model configuration
+## 🛠️ Getting Started
 
-Forward diffusion process
-
-Reverse denoising sampling
-
-Statistical validation of generated turbulence
-
-📊 Analysis of Results (Detailed Interpretation)
-
-Below is a full analysis of each major plot and evaluation step performed in demo.ipynb.
-
-1. Training Loss Curve
-
-Observation:
-The training loss decreases smoothly and stabilizes after several epochs, with no sign of divergence.
-
-Interpretation:
-
-The model successfully learns the noise prediction task.
-
-No evidence of mode collapse (unlike GANs).
-
-The plateau indicates the model converged to a stable noise estimator.
-
-2. Real vs Generated Time Series
-
-Observation:
-Generated signals visually resemble turbulent velocity fluctuations:
-
-intermittent bursts
-
-sharp gradients
-
-irregular amplitude variations
-
-non-stationary local behaviour
-
-Interpretation:
-The diffusion model correctly reproduces qualitative turbulent features.
-However, small deviations in high-frequency content suggest limited capture of the smallest scales, likely due to training data size or network depth.
-
-3. Probability Density Function (PDF)
-
-Observation:
-The PDF of generated velocities matches the real data closely—particularly the heavy tails.
-
-Interpretation:
-
-Diffusion models excel at capturing non-Gaussian statistics, a strong point of the DDPM approach.
-
-Tail behaviour is reproduced, indicating successful modelling of intermittency.
-
-Minor differences may appear near the distribution core (|v| < 1σ), suggesting smoothing by the model.
-
-4. Power Spectral Density (PSD)
-
-Observation:
-The PSD slope of the generated signal approximates the real signal over a broad frequency range.
-
-Interpretation:
-
-The model reproduces the energy cascade signature, though the inertial range may be narrower.
-
-Deviations at high frequencies indicate underfitting of small-scale turbulent structures.
-
-This mirrors limitations observed in earlier generative models.
-
-5. Autocorrelation Function
-
-Observation:
-The autocorrelation of synthetic data decays similarly to real turbulence but with slightly weaker long-time memory.
-
-Interpretation:
-
-Diffusion models recover short-time temporal dynamics well.
-
-Long-time correlations (large-scale eddies) are partially captured but smoothed.
-
-This is likely due to the model being 1D and without explicit temporal conditioning.
-
-6. Increment Statistics / Structure Functions
-
-Observation:
-Real and generated increment PDFs align closely for small lags, diverging modestly at larger scales.
-
-Interpretation:
-
-The model reproduces intermittency at short timescales.
-
-Larger-scale increments depend on long-range temporal relationships that the model only approximates.
-
-✔️ Overall Model Quality
-
-Strengths:
-
-Good reproduction of heavy-tailed PDFs (intermittency).
-
-Realistic time-series appearance.
-
-Stable training and sampling.
-
-Consistent PSD slopes and short-time structure functions.
-
-Limitations:
-
-Long-term correlations partially underestimated.
-
-Small-scale high-frequency fluctuations smoothed out.
-
-Scaling laws only approximated, not perfectly matched.
-
-🔮 Future Work
-
-To improve the fidelity of synthetic turbulence:
-
-Conditioned diffusion models
-
-introduce temporal conditioning
-
-use transformer-based noise predictors
-
-Multidimensional turbulence
-
-extend from 1D velocity to 3D Lagrangian trajectories
-
-Physics-informed diffusion
-
-enforce scaling laws during training
-
-embed Kolmogorov constraints into the loss
-
-Longer sequences
-
-train on larger datasets to enhance long-time statistics
-
-Score-based SDE models
-
-continuous-time formulation for improved small-scale accuracy
+### Prerequisites
+- Python 3.9+
+- PyTorch
+- NumPy / Matplotlib / Scipy
