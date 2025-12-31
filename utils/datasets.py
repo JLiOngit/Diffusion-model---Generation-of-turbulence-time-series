@@ -23,10 +23,10 @@ def load_data(dataset_repertory, dataset_name, normalized=False):
         velocities = np.array(h5f.get('train')).swapaxes(1, 2)
     if not normalized :    
         velocities = denormalize(velocities, rx1, rx0)
-    return velocities
+    return velocities, rx1, rx0
 
 
-def training_test_split(dataset, training_size=0.8, validation_size=0.1, normalization=True):
+def training_test_split(dataset, training_size=0.8, validation_size=0.1):
     """
     Split the dataset into training, validation, and test subsets.
     """
@@ -36,13 +36,6 @@ def training_test_split(dataset, training_size=0.8, validation_size=0.1, normali
     train = dataset[:n_train]
     val = dataset[n_train:n_train + n_val] if n_val > 0 else None
     test = dataset[n_train + n_val:]
-    if normalization:
-        train_min = th.amin(train, dim=(0, 2), keepdim=True)
-        train_max = th.amax(train, dim=(0, 2), keepdim=True)
-        train = normalize(train, train_max, train_min)
-        if val is not None:
-            val = normalize(val, train_max, train_min)
-        test = normalize(test, train_max, train_min)
     return (train, val, test) if val is not None else (train, test)
 
 

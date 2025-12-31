@@ -27,6 +27,7 @@ class Sample_loop:
             n_batch = th.tensor([n] * Vn.shape[0], device=self.device)
             predicted_noise = self.model(Vn, n_batch)
             predicted_V0 = self.model_diffusion.get_V0_from_noise(Vn, n_batch, predicted_noise)
+            predicted_V0 = th.clamp(predicted_V0, min=-1, max=1)
             predicted_mean = self.model_diffusion.get_posterior_mean(n_batch, Vn, predicted_V0)
             predicted_variance = self.model_diffusion.get_posterior_variance(n_batch)
             output = {
