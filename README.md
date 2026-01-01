@@ -1,6 +1,6 @@
 # Project Overview & Academic Background
 
-This repository provides the implementated code for the Recent Advances in Machine Learning course project, part of the MSc in Data Science program at IMT Atlantique.
+This repository provides the implementated code for the Recent Advances in Machine Learning course project, part of the MEng in Computer Science program at IMT Atlantique.
 
 This work is based on the paper Li, T., Biferale, L., Bonaccorso, F., Scarpolini, M. A., & Buzzicotti, M. (2024). [*"Synthetic Lagrangian turbulence by generative diffusion models"*.](https://doi.org/10.1038/s42256-024-00810-0).
 
