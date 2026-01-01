@@ -1,78 +1,122 @@
-# Synthetic Lagrangian Turbulence Generation via Denoising Diffusion Probabilistic Models (DDPM)
+# Project Overview & Academic Background
 
-## 📖 Project Overview & Academic Background
+This repository provides the implementated code for the Recent Advances in Machine Learning course project, part of the MSc in Data Science program at IMT Atlantique.
 
-This project implements a generative framework for synthesizing **Lagrangian turbulence time series**. It is an academic reproduction and exploration based on the state-of-the-art research published in *Nature Machine Intelligence*:
+This work is based on the paper Li, T., Biferale, L., Bonaccorso, F., Scarpolini, M. A., & Buzzicotti, M. (2024). [*"Synthetic Lagrangian turbulence by generative diffusion models"*.](https://doi.org/10.1038/s42256-024-00810-0).
 
-> **Primary Reference:** Li, T., Biferale, L., Bonaccorso, F., Scarpolini, M. A., & Buzzicotti, M. (2024). *"Synthetic Lagrangian turbulence by generative diffusion models"*. [Nature Machine Intelligence](https://doi.org/10.1038/s42256-024-00810-0).
-
-The objective is to demonstrate that **Generative AI** can circumvent the massive computational cost of Direct Numerical Simulations (DNS) while faithfully preserving the multi-scale statistics and intermittent nature of turbulent flows.
+The goal of this project is to reproduce and analyze how Denoising Diffusion Probabilistic Models (DDPM) can serve as a computationally efficient alternative to costly Direct Numerical Simulations (DNS) for generating stochastic processes that preserve the key multi-scale statistics and intermittent behavior of turbulent flows.
 
 ---
 
-## 🔬 Ground-Truth Analysis & Baseline Metrics
+# Dataset
 
-Before training, the `demo.ipynb` notebook performs a detailed diagnostic of the reference DNS data:
-- **Trajectory Analysis:** Inspection of the velocity $u(t)$ to observe chaotic fluctuations and temporal persistence.
-- **Statistical Signature:** Establishing the reference for the Probability Density Functions (PDF) and Power Spectral Density (PSD) that the model must replicate.
+The research paper uses turbulent Lagrangian trajectories extracted from a high-resolution Direct Numerical Simulation (DNS) of the three-dimensional incompressible Navier–Stokes equations in a cubic, periodic domain with homogeneous isotropic forcing, once statistical stationarity had been reached.
+
+Each trajectory was sampled at a temporal resolution of $\Delta t \simeq 0.1\,\tau_\eta
+$ where $\tau_\eta$ is the Kolmogorov time scale. This corresponds to **2,000 time steps per trajectory**, corresponding to $T \simeq 200\,\tau_\eta$ of Lagrangian evolution.
+
+A subset of **768 one-dimensional (1D) turbulent velocity trajectories** was made publicly available and used in our implementation. Each trajectory represents the time evolution of a single velocity component of a tracer particle in the turbulent flow. 
+
+![''](plots/time_series.png)
 
 ---
 
-## 🧠 Deep Dive: The DDPM Mathematical Framework
 
-The core implementation follows the **Denoising Diffusion Probabilistic Models (DDPM)** framework defined by *Ho et al. (2020)*. The process is divided into two distinct Markov chains.
+# Turbulence properties
 
-### 1. The Forward Diffusion Process ($q$)
-The forward process is a fixed Markov chain that gradually adds Gaussian noise to the initial turbulent signal $x_0$ over $T$ steps, according to a variance schedule $\beta_1, \dots, \beta_T$:
+This section summarizes the main statistical quantities used to assess whether a generative model correctly reproduces the physics of Lagrangian turbulence.
 
-$$q(x_t | x_{t-1}) = \mathcal{N}(x_t; \sqrt{1 - \beta_t} x_{t-1}, \beta_t \mathbf{I})$$
+## 1. The Probability density function of increments
 
-A fundamental property of this process is that it allows sampling $x_t$ at any arbitrary timestep $t$ in closed form, using the notation $\alpha_t = 1 - \beta_t$ and $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$:
+The Probability Density Function (PDF) of velocity increments  $\delta_\tau u = u(+\tau) - u(t)$ measures the likelihood of observing a given change in velocity over a time lag $\tau$.
 
-$$x_t = \sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon, \quad \text{where } \epsilon \sim \mathcal{N}(0, \mathbf{I})$$
+![''](plots/pdf_increments.png)
 
-* **Physical Analogy:** This mirrors the dissipation of information where the structured, intermittent bursts of the velocity signal are progressively destroyed until they reach a state of maximum entropy (pure white noise).
+The shape of the PDF changes with the scale $\tau$:
+- **Large scales $\tau$**: the PDF is close to Gaussian so velocity variations are relatively smooth and predictable.
+- **Small scales $\tau$**: the PDF develops *fat tails* indicating that extreme events (strong, sudden accelerations) occur far more frequently than in a purely random Gaussian process. This phenomenon is known as **intermittency**
+
+If the model reproduces these fat tails, it successfully captures the **fine-scale intermittent** structures of turbulence.
+
+## 2. Lagrangian Structure Functions$
+
+The structure function of order p defined as $S_p(\tau) = \langle [\delta_\tau u]^p \rangle$ quantifies the magnitude of velocity fluctuations across scales, capturing the **energy distribution** and **multi-scale correlations** of turbulence. $\tau$. 
+For $p=2$, $S_2(\tau)$ represents the energy associated with fluctuations at scale $\tau$.
+
+In fully developed turbulence, the structure functions follow scaling laws in the inertial range: $S_p(\tau) \propto \tau^{\zeta_p}$ where $\zeta_p$ are scaling exponents. Deviations from linear scaling indicate **intermittency**.
+
+
+## 3. Generalized Flatness
+
+The generalized flatness of order \(p\) defined as $F_p(\tau) = \frac{S_p(\tau)}{[S_ (\tau)]^{p/2}}$ measures the **degree of intermittency**: how much the distribution of increments deviates from Gaussian behavior. Large $F_p(\tau)$ at small $\tau$ indicates frequent **extreme events** and strong small-scale turbulent bursts.
+
+
+![''](plots/structure_flatness.png)
+
+# The DDPM Mathematical Framework
+
+Diffusion models are a class of generative models that learn to generate data by reversing a gradual noising process. They work by:
+1. **Forward process**: Gradually adding Gaussian noise to data until it becomes pure noise
+2. **Reverse process**: Learning to denoise, step by step, from pure noise back to data
+
+## 1. Forward Diffusion Process
+
+The forward process gradually corrupts data $x_0$ by adding Gaussian noise over $T$ timesteps.
+
+### Markov Chain Definition
+
+$$q(x_{1:T} | x_0) := \prod_{t=1}^{T} q(x_t | x_{t-1})$$
+
+where each step adds noise:
+
+$$q(x_t | x_{t-1}) := \mathcal{N}(x_t; \sqrt{1 - \beta_t} x_{t-1}, \beta_t I)$$
+
+**With key parameters:**
+- $\beta_t$: Variance schedule controlling noise added at step $t$
+- $T$: Total diffusion steps
+
+We defined and displayed different variance schedulers. 
+We decided to use a linear scheduler and T = 800 diffusion steps, rather than the tanh6,1 scheduler used in the paper, after few experiences showing a lower loss from the model
+
+![Different variance schedulers](plots/variance_scheduler.png)
+
+
+This reflects how information gradually dissipates: the structured and intermittent bursts in the velocity signal are increasingly damaged during the process, until they eventually reach a state of maximum entropy, similar to pure white noise. 
+
+In addition, we displayed the evolution of the time series and its statistical properties at different diffusion steps in order to visualise the forward process of the diffusion model.
+
+![Forward diffusion process](plots/forward.png)
 
 ### 2. The Reverse Denoising Process ($p_\theta$)
 The generative model learns to reverse the diffusion by approximating the conditional distribution $q(x_{t-1} | x_t)$. We use a learned model $p_\theta$:
 
 $$p_\theta(x_{t-1} | x_t) = \mathcal{N}(x_{t-1}; \mu_\theta(x_t, t), \Sigma_\theta(x_t, t))$$
 
-In our implementation, the 1D U-Net is trained to predict the noise $\epsilon$ added at step $t$. The sampling (generation) follows a stochastic decay process:
+In our implementation, the 1D U-Net is trained to predict the noise $\epsilon_\theta$ added at step $t$. More precisely, the training objective (loss function) is to minimize the difference between the true noise $\epsilon$ and the predicted noise $\epsilon_\theta$. This is equivalent to **denoising score matching**:
 
-$$x_{t-1} = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \frac{1 - \alpha_t}{\sqrt{1 - \bar{\alpha}_t}} \epsilon_\theta(x_t, t) \right) + \sigma_t \mathbf{z}, \quad \text{where } \mathbf{z} \sim \mathcal{N}(0, \mathbf{I})$$
+$$L_{simple}(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \left\| \epsilon - \epsilon_\theta(x_t, t) \right\|^2 \right]$$
 
-### 3. Training Objective (Loss Function)
-The model is trained to minimize the difference between the true noise $\epsilon$ and the predicted noise $\epsilon_\theta$. This is equivalent to **denoising score matching**:
+![Training and validation losses](plots/losses.png)
 
-$$L_{simple}(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \left\| \epsilon - \epsilon_\theta(\sqrt{\bar{\alpha}_t} x_0 + \sqrt{1 - \bar{\alpha}_t} \epsilon, t) \right\|^2 \right]$$
+Once the model is trained, we can generate new turbulent trajectories by **starting from pure Gaussian noise** and iteratively applying the reverse diffusion process. At each step t, assuming that the standard deviations of the reverse and forward processes are
+identical ($\Sigma_\theta(x_t, t) = \beta_tI$), the model predicts the mean of the previous trajectory $x_{t-1}$ conditioned on the current noisy trajectory $x_t$ and the time step t. The update rule is given by:
 
-## 📊 Detailed Turbulence Analysis & Results
+$$\mu_\theta(x_t, t) = \frac{1}{\sqrt{\alpha_t}} \left( x_t - \beta_t \frac{\epsilon_\theta(x_t, t)}{\sqrt{1 - \bar{\alpha}_t}} \right)$$
 
-The validation compares the generated trajectories against the initial ground-truth trajectories across three fundamental pillars.
+The actual update step adds stochasticity:
 
-### 1. Intermittency & PDFs of Increments
-Turbulence is characterized by **intermittency**, where small-scale structures are highly non-Gaussian.
-- **Analysis:** PDFs of velocity increments $\delta_\tau u = u(t+\tau) - u(t)$. 
-- **Observations:** For small $\tau$, the PDFs exhibit **heavy-tailed distributions** (fat tails).
-- **Result:** Our DDPM successfully captures these fat tails, representing rare but intense acceleration events. This confirms the model's ability to reproduce **anomalous scaling**.
+$$x_{t-1} = \mu_\theta(x_t, t) + \beta_t \mathbf{z}, \quad \mathbf{z} \sim \mathcal{N}(0, \mathbf{I})$$
+
+Here, we show the backward diffusion process at different steps, illustrating how the model progressively removes noise to generate realistic turbulent trajectories.
+
+![''](plots/backward.png)
+
+We can observe that, although the model is able to generate trajectories from pure Gaussian noise, some residual noise remains in the final samples. Further modifications and experiments could be explored to improve the model's performance and reduce these remaining artifacts.
+
+Finally, a total of 250 trajectories were generated. These trajectories are used to compute the previously introduced turbulence metrics and to evaluate how well the model reproduces the key characteristics of the turbulent flow.
+
+![''](plots/generated_pdf_increments.png)
+
+![''](plots/generated_structure_flatness.png)
 
 
-
-### 2. The Energy Cascade (Spectral Analysis)
-Energy cascades from large scales down to small scales where it dissipates.
-- **Analysis:** Power Spectral Density (PSD) calculation.
-- **Result:** The synthetic signal follows the expected Lagrangian power-law $E(f) \propto f^{-2}$, confirming that the model respects the **Kolmogorov phenomenology**.
-
-### 3. Temporal Coherence (Autocorrelation)
-- **Analysis:** Comparison of the Autocorrelation Function (ACF) to evaluate temporal memory.
-- **Result:** The model accurately reproduces the **integral time scale** $T_L$, ensuring the synthetic particles drift with the same temporal persistence as real ones.
-
----
-
-## 🛠️ Getting Started
-
-### Prerequisites
-- Python 3.9+
-- PyTorch
-- NumPy / Matplotlib / Scipy

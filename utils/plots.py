@@ -23,6 +23,7 @@ def plot_time_series(sample):
     ax.tick_params('x', labelsize=10)
     ax.tick_params('y', labelsize=10)
     ax.legend(fontsize=15)
+    plt.tight_layout()
     plt.show()
 
 
@@ -44,6 +45,7 @@ def plot_pdf_increments(velocities, tau_values):
     ax.tick_params('x', labelsize=10)
     ax.tick_params('y', labelsize=10)
     ax.legend(fontsize=15)
+    plt.tight_layout()
     plt.show()
 
 
@@ -183,6 +185,8 @@ def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[
         axes[i,4].tick_params('x', labelsize=30)
         axes[i,4].tick_params('y', labelsize=30)
         axes[i,4].legend(fontsize=30)
+    plt.tight_layout()
+    plt.show()
 
 
 def plot_backward(sample_outputs, parameter, model_diffusion, diffusion_steps_ratio=[0, 0.1, 0.2, 0.5, 0.7, 0.9]):
@@ -219,3 +223,5 @@ def plot_backward(sample_outputs, parameter, model_diffusion, diffusion_steps_ra
         axes[j, 1].set_xlabel('Timestep', fontsize=16)
         axes[j, 1].set_ylabel(f'{parameter}', fontsize=16)
         axes[j, 1].tick_params(labelsize=14)
+    plt.tight_layout()
+    plt.show()
