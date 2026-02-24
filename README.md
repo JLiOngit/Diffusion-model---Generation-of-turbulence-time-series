@@ -1,6 +1,6 @@
 # Project Overview & Academic Background
 
-This repository provides the implementated code for the Recent Advances in Machine Learning course project, part of the MEng in Computer Science program at IMT Atlantique.
+This repository provides the implemented code for the Recent Advances in Machine Learning course project, part of the MEng in Computer Science program at IMT Atlantique.
 
 This work is based on the paper Li, T., Biferale, L., Bonaccorso, F., Scarpolini, M. A., & Buzzicotti, M. (2024). [*"Synthetic Lagrangian turbulence by generative diffusion models"*.](https://doi.org/10.1038/s42256-024-00810-0).
 
@@ -38,7 +38,7 @@ The shape of the PDF changes with the scale $\tau$:
 
 If the model reproduces these fat tails, it successfully captures the **fine-scale intermittent** structures of turbulence.
 
-## 2. Lagrangian Structure Functions$
+## 2. Lagrangian Structure Functions
 
 The structure function of order p defined as $S_p(\tau) = \langle [\delta_\tau u]^p \rangle$ quantifies the magnitude of velocity fluctuations across scales, capturing the **energy distribution** and **multi-scale correlations** of turbulence. $\tau$. 
 For $p=2$, $S_2(\tau)$ represents the energy associated with fluctuations at scale $\tau$.
