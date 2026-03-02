@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import torch as th
+from tqdm import tqdm
 from .gaussian_diffusion import *
 
 
@@ -19,9 +20,6 @@ class Sample_loop:
         self.num_diffusion_steps = len(betas)
 
     def get_model_mean_variance(self, n, Vn):
-        """
-        Predict the distribution p(x_t-1 | x_t) (mean and variance), as well as a prediction of the initial trajectories V0.
-        """
         with th.no_grad():
             Vn = Vn.to(self.device, dtype=th.float32)
             n_batch = th.tensor([n] * Vn.shape[0], device=self.device)
@@ -39,9 +37,6 @@ class Sample_loop:
             return output
     
     def sample_Vnprev(self, n, Vn):
-        """
-        Sample Vn-1 from the distribution predicted by the model at the given diffusion step n.
-        """
         with th.no_grad():
             Vn = Vn.to(self.device)
             output = self.get_model_mean_variance(n, Vn)
@@ -55,9 +50,6 @@ class Sample_loop:
             return samples_dict
     
     def run_loop_generator(self):
-        """
-        Yield samples at each diffusion step.
-        """
         Vn = self.noise
         for n in reversed(range(self.num_diffusion_steps)):
             sample_dict = self.sample_Vnprev(n, Vn)
@@ -65,12 +57,9 @@ class Sample_loop:
             yield sample_dict
 
     def run_loop_last_sample(self):
-        """
-        Return the generated sample after all diffusion steps.
-        """
         Vn = self.noise
         with th.no_grad():
-            for n in reversed(range(self.num_diffusion_steps)):
+            for n in tqdm(reversed(range(self.num_diffusion_steps)), total=self.num_diffusion_steps, desc="Denoising", leave=False):
                 sample_dict = self.sample_Vnprev(n, Vn)
                 Vn = sample_dict['sample']
         return Vn

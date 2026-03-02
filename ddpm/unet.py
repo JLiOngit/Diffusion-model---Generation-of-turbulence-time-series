@@ -5,18 +5,15 @@ from .modules import *
 
 
 class UNet(nn.Module):
-    """
-    The full UNet model with attention and timestep embedding.
-    """
 
     def __init__(self,
                  input_channels,
                  model_channels,
                  output_channels,
-                 n_resblocks=3,
-                 n_heads=2,
-                 attention_resolution=[4,8],
-                 channels_mult=[1,2,4,8]):
+                 n_resblocks,
+                 n_heads,
+                 attention_resolution,
+                 channels_mult):
         super().__init__()
         self.input_channels = input_channels
         self.model_channels = model_channels
@@ -77,15 +74,6 @@ class UNet(nn.Module):
         )          
         
     def forward(self, x, diffusion_steps):
-        """
-        Apply the model to an input batch.
-
-        Inputs:
-            x[th.tensor]: the input tensor of shape [B x C x ...]
-            diffusion_steps[th.tensor]: a 1-D Tensor of N indices, one per batch element. These may be fractional.
-        Output:
-            output[th.tensor]: the output tensor of shape [B x C x ...]
-        """
         embeddings = self.time_embedding(timestep_embedding(diffusion_steps, self.model_channels))
         skip_connections = []
         for layer in self.encoder:

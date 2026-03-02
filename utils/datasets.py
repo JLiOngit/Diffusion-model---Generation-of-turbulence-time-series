@@ -11,25 +11,19 @@ def normalize(normalized_velocities, max, min):
 def denormalize(velocities, max, min):
     return (velocities + 1) * (max - min) / 2 + min
 
-
-def load_data(dataset_repertory, dataset_name, normalized=False):
+def load_data(dataset_path, normalized=False):
     """
     Load the turbulence time series with shape [B x C x T]
     """
-    file_path = os.path.join(dataset_repertory, dataset_name)
-    with h5py.File(file_path , 'r') as h5f:
+    with h5py.File(dataset_path , 'r') as h5f:
         rx0 = np.array(h5f.get('min'))
         rx1 = np.array(h5f.get('max'))
         velocities = np.array(h5f.get('train')).swapaxes(1, 2)
     if not normalized :    
         velocities = denormalize(velocities, rx1, rx0)
-    return velocities, rx1, rx0
-
+    return th.tensor(velocities), rx1, rx0
 
 def training_test_split(dataset, training_size=0.8, validation_size=0.1):
-    """
-    Split the dataset into training, validation, and test subsets.
-    """
     N = dataset.shape[0]
     n_train = int(N * training_size)
     n_val = int(N * validation_size)
@@ -40,9 +34,7 @@ def training_test_split(dataset, training_size=0.8, validation_size=0.1):
 
 
 class TurbDataset(Dataset):
-    """
-    Initialize the turbulence dataset.
-    """
+
     def __init__(self, 
                  data):
         super().__init__()
@@ -57,17 +49,8 @@ class TurbDataset(Dataset):
     
 
 def loader(dataset, batch_size, shuffle=True, infinite=True):
-    """
-    Create an infinite DataLoader iterator for training model.
-    """
     torch_dataset = TurbDataset(dataset)
-    loader = DataLoader(
-        torch_dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=1,
-        drop_last=True
-    )
+    loader = DataLoader(torch_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=1, drop_last=True)
     if infinite:
         while True:
             for batch in loader:

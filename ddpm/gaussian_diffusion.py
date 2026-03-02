@@ -55,10 +55,7 @@ def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     
 
 class GaussianDiffusion:
-    """
-    Utilities for training and sampling diffusion models.
-    """
-    
+
     def __init__(self,
                  betas,
                  device):
@@ -84,7 +81,7 @@ class GaussianDiffusion:
             alphas_cumprod = alphas_cumprod.unsqueeze(-1)
         Vn = th.sqrt(alphas_cumprod) * V0 + th.sqrt(1 - alphas_cumprod) * noise
         return Vn
-    
+
     def get_posterior_variance(self, n_batch):
         """
         Calculate the posterior variance of the trajectory Vn-1
@@ -176,25 +173,13 @@ class GaussianDiffusion:
 
     def loss_kl(mean1, logvar1, mean2, logvar2):
         """
-        Compute the KL divergence between two Gaussians:
-        N(mean1, exp(logvar1)) || N(mean2, exp(logvar2))
-
-        Automatically handles broadcasting (e.g. mean=[B,1,256], logvar=[B]).
-        Returns the mean KL over all elements.
+        Compute the KL divergence between two Gaussians: N(mean1, exp(logvar1)) || N(mean2, exp(logvar2))
         """
-        # Correction : broadcast logvars to match mean shapes
         while len(logvar1.shape) < len(mean1.shape):
             logvar1 = logvar1.unsqueeze(-1)
         while len(logvar2.shape) < len(mean2.shape):
             logvar2 = logvar2.unsqueeze(-1)
-
-        kl = 0.5 * (
-            -1.0
-            + logvar2
-            - logvar1
-            + th.exp(logvar1 - logvar2)
-            + ((mean1 - mean2) ** 2) * th.exp(-logvar2)
-        )
+        kl = 0.5 * (1.0 + logvar2 - logvar1 + th.exp(logvar1 - logvar2) + ((mean1 - mean2) ** 2) * th.exp(-logvar2))
         return kl
     
     

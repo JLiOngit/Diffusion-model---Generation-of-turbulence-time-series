@@ -26,7 +26,6 @@ def plot_time_series(sample):
     plt.tight_layout()
     plt.show()
 
-
 def plot_pdf_increments(velocities, tau_values):
     """
     Plot the probability density function (PDF) of velocity increments.
@@ -46,8 +45,7 @@ def plot_pdf_increments(velocities, tau_values):
     ax.tick_params('y', labelsize=10)
     ax.legend(fontsize=15)
     plt.tight_layout()
-    plt.show()
-
+    plt.savefig("./plots/samples_increments.jpg", dpi=300)
 
 def plot_structure_flatness(velocities, p_values, tau_values):
     """
@@ -73,8 +71,7 @@ def plot_structure_flatness(velocities, p_values, tau_values):
     axes[1].set_title(' log–log plot of the generalized flatness')
     axes[1].legend()
     plt.tight_layout()
-    plt.show()
-
+    plt.savefig("./plots/samples_structure_flatness.jpg", dpi=300)
 
 def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[0.3,0.6,0.9,1]):
     """
@@ -91,12 +88,10 @@ def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[
     col_titles = ['Noise schedule', 'Time series', r'Velocities increments PDF ($\mathcal{\tau}$ = $\mathcal{\tau}_n$)', 'Structure function S(p)τ for p=2', 'Generalized flatness F(p)τ for p=4' ]
     for i, ax in enumerate(axes[0]):
         ax.set_title(col_titles[i], fontsize=60)
-
     betas = get_named_beta_schedule(schedule_name, num_diffusion_steps)
     device = th.device('cuda') if th.cuda.is_available() else th.device('cpu')
     diffusion_model = GaussianDiffusion(betas, device)
     noise = th.randn_like(V0)
-
     # Loop over the different diffusion steps
     for (i, ratio) in enumerate(diffusion_steps_ratio):
         n  = int(min(num_diffusion_steps*ratio, num_diffusion_steps-1))
@@ -187,7 +182,6 @@ def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[
         axes[i,4].legend(fontsize=30)
     plt.tight_layout()
     plt.show()
-
 
 def plot_backward(sample_outputs, parameter, model_diffusion, diffusion_steps_ratio=[0, 0.1, 0.2, 0.5, 0.7, 0.9]):
     """

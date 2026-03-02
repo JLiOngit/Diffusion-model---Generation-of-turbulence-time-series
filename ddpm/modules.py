@@ -87,9 +87,6 @@ def zero_module(module):
 class Residual_block(TimestepBlock):
     """
     Residual block with optional timestep embedding conditioning.
-
-    This block applies a sequence of normalization, activation, and convolution layers to the input tensor, adds a timestep embedding (after linear projection and SiLU activation), and includes a skip/residual connection to facilitate gradient flow. 
-    It is designed for use in UNet-like architectures in diffusion models.
     """
     def __init__(self,
                  input_channels,
@@ -118,15 +115,7 @@ class Residual_block(TimestepBlock):
         else:
             self.skip_connection = nn.Conv1d(in_channels=input_channels, out_channels=output_channels, kernel_size=1)
         
-        
     def forward(self, x, embeddings):
-        """
-        Inputs:
-            x[th.tensor]: Input feature map tensor of shape [B, C, ...]
-            embeddings[th.tensor]: Timestep embeddings of shape [B, emb_channels] for each batch element.
-        Output:
-            output[th.tensor]: Tensor of shape [B, C, ...] after residual addition.
-        """
         residual = self.skip_connection(x)
         x = self.in_layers(x)
         embeddings = self.emb_layers(embeddings)
@@ -140,22 +129,12 @@ class Residual_block(TimestepBlock):
 class SelfAttention(nn.Module):
     """
     Multi-head self-attention mechanism used in AttentionBlock.
-
-    This module splits the input tensor into queries, keys, and values, applies multi-head attention, and returns the aggregated attention output.
-    It is designed to operate on tensors of shape [B, T, 3*C] where queries, keys, and values are concatenated along the channel dimension.
     """
-
     def __init__(self, n_heads):
         super().__init__()
         self.n_heads = n_heads
 
     def forward(self, qkv):
-        """
-        Input:
-            qkv[th.tensor]: Input tensor of shape [B, 3*C, T]
-        Output:
-            attentions [th.tensor]: Output tensor of shape [B, C, T], representing the attention-weighted sum of values across all heads.
-        """
         n_samples, channels, timesteps = qkv.shape
         assert channels % (3 * self.n_heads) == 0
         q, k, v = qkv.chunk(3, dim=1)
@@ -173,11 +152,7 @@ class SelfAttention(nn.Module):
 class AttentionBlock(nn.Module):
     """
     Self-attention block for feature maps.
-
-    This block applies group normalization followed by a linear projection to produce query, key, and value tensors, then performs multi-head self-attention, and finally projects the result back to the original channel dimension. 
-    A residual connection adds the input to the attention output. Designed for use in UNet-like architectures.
     """
-
     def __init__(self,
                  channels, 
                  n_heads):
@@ -194,12 +169,6 @@ class AttentionBlock(nn.Module):
         self.out_layers = nn.Conv1d(channels, channels, kernel_size=1)
 
     def forward(self, x):
-        """
-        Input:
-            x[th.tensor]: Input feature map tensor of shape [B, C, ...]
-        Output:
-            output[th.tensor]: tensor of shape [B, C, ...]  after applying self-attention and residual addition.
-        """
         b, c, *size = x.shape
         x = x.reshape(b, c, -1) # x: [B, C, T]
         qkv = self.in_layers(x) # qkv: [B, 3C, T]
