@@ -45,7 +45,7 @@ def plot_pdf_increments(velocities, tau_values):
     ax.tick_params('y', labelsize=10)
     ax.legend(fontsize=15)
     plt.tight_layout()
-    plt.savefig("./plots/samples_increments.jpg", dpi=300)
+    plt.savefig("./results/samples_increments.jpg", dpi=300)
 
 def plot_structure_flatness(velocities, p_values, tau_values):
     """
@@ -71,7 +71,7 @@ def plot_structure_flatness(velocities, p_values, tau_values):
     axes[1].set_title(' log–log plot of the generalized flatness')
     axes[1].legend()
     plt.tight_layout()
-    plt.savefig("./plots/samples_structure_flatness.jpg", dpi=300)
+    plt.savefig("./results/samples_structure_flatness.jpg", dpi=300)
 
 def plot_forward(V0, num_diffusion_steps, schedule_name, diffusion_steps_ratio=[0.3,0.6,0.9,1]):
     """

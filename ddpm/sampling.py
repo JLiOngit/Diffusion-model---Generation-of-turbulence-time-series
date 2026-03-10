@@ -1,4 +1,5 @@
 import math
+import time
 import numpy as np
 import torch as th
 from tqdm import tqdm
@@ -56,10 +57,18 @@ class Sample_loop:
             Vn = sample_dict['sample']
             yield sample_dict
 
-    def run_loop_last_sample(self):
+    def run_loop_last_sample(self, measure_latency: bool = False):
         Vn = self.noise
+        if measure_latency and self.device.type == "cuda":
+            th.cuda.synchronize()
+        t_start = time.perf_counter()
         with th.no_grad():
             for n in tqdm(reversed(range(self.num_diffusion_steps)), total=self.num_diffusion_steps, desc="Denoising", leave=False):
                 sample_dict = self.sample_Vnprev(n, Vn)
                 Vn = sample_dict['sample']
-        return Vn
+        if measure_latency:
+            if self.device.type == "cuda":
+                th.cuda.synchronize()
+            latency_ms = (time.perf_counter() - t_start) * 1000
+            return Vn, latency_ms
+        return Vn, None

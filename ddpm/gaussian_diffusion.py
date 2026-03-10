@@ -156,12 +156,12 @@ class GaussianDiffusion:
             terms["mse"] = mse_loss
         elif loss_type == 'kl':
             noise_mean = noise.mean(dim=(1, 2), keepdim=True)
-            noise_var = noise.var(dim=(1, 2), keepdim=True)
-            noise_logvar = th.log(noise_var + 1e-30)
+            noise_var = noise.var(dim=(1, 2), keepdim=True).clamp(min=1e-6)
+            noise_logvar = th.log(noise_var)
             pred_mean = predicted_noise.mean(dim=(1, 2), keepdim=True)
-            pred_var = predicted_noise.var(dim=(1, 2), keepdim=True)
-            pred_logvar = th.log(pred_var + 1e-30)
-            kl = self.loss_kl(mean1=noise_mean,
+            pred_var = predicted_noise.var(dim=(1, 2), keepdim=True).clamp(min=1e-6)
+            pred_logvar = th.log(pred_var)
+            kl = loss_kl(mean1=noise_mean,
                         logvar1=noise_logvar,
                         mean2=pred_mean,
                         logvar2=pred_logvar)
@@ -171,15 +171,17 @@ class GaussianDiffusion:
             raise ValueError(f"Unknown loss type: {loss_type}")
         return terms
 
-    def loss_kl(mean1, logvar1, mean2, logvar2):
-        """
-        Compute the KL divergence between two Gaussians: N(mean1, exp(logvar1)) || N(mean2, exp(logvar2))
-        """
-        while len(logvar1.shape) < len(mean1.shape):
-            logvar1 = logvar1.unsqueeze(-1)
-        while len(logvar2.shape) < len(mean2.shape):
-            logvar2 = logvar2.unsqueeze(-1)
-        kl = 0.5 * (1.0 + logvar2 - logvar1 + th.exp(logvar1 - logvar2) + ((mean1 - mean2) ** 2) * th.exp(-logvar2))
-        return kl
+def loss_kl(mean1, logvar1, mean2, logvar2):
+    """
+    Compute the KL divergence between two Gaussians: N(mean1, exp(logvar1)) || N(mean2, exp(logvar2))
+    """
+    while len(logvar1.shape) < len(mean1.shape):
+        logvar1 = logvar1.unsqueeze(-1)
+    while len(logvar2.shape) < len(mean2.shape):
+        logvar2 = logvar2.unsqueeze(-1)
+    var1 = th.exp(logvar1)
+    var2 = th.exp(logvar2)
+    kl = 0.5 * (logvar2 - logvar1 + (var1 + (mean1 - mean2) ** 2) / var2 - 1.0)
+    return kl
     
     

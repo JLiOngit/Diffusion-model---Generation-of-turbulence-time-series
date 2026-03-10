@@ -1,0 +1,11 @@
+{
+    "num_samples": 500,
+    "device": "cuda",
+    "diffusion_steps": 800,
+    "mean_ms": 29514.76,
+    "std_ms": 1093.54,
+    "min_ms": 26462.32,
+    "max_ms": 38761.58,
+    "p95_ms": 31735.69,
+    "throughput_samples_per_s": 0.0339
+}

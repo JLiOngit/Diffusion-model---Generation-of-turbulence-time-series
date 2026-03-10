@@ -21,6 +21,7 @@ class Train_loop:
                  loss_type,
                  num_training_steps,
                  num_validation_steps,
+                 max_no_improve,
                  use_checkpoint):
         self.model = model.to(device)
         self.model_ema = copy.deepcopy(model).to(device)
@@ -37,6 +38,7 @@ class Train_loop:
         self.loss_type = loss_type
         self.num_training_steps = num_training_steps
         self.num_validation_steps = num_validation_steps
+        self.max_no_improve = max_no_improve
         self.use_checkpoint = use_checkpoint
         self.step = 0
         self.optimizer = AdamW(list(self.model.parameters()), lr=self.learning_rate, weight_decay=self.weight_decay)
@@ -123,6 +125,7 @@ class Train_loop:
         validation_losses = []
         validation_steps = []
         best_loss = float('inf')
+        no_improve_counter = 0
         if self.use_checkpoint:
             print(f"Checking if there is any checkpoint")
             last_checkpoint_path, last_checkpoint = self.load_checkpoint(output_directory)
@@ -146,6 +149,7 @@ class Train_loop:
                 print(f"iteration {self.step} | training loss: {train_loss:.4f} | validation loss: {validation_loss:.4f} | learning rate: {lr_current:.4e}")
                 if validation_loss < best_loss:
                     best_loss = validation_loss
+                    no_improve_counter = 0
                     if last_checkpoint_path is not None and os.path.exists(last_checkpoint_path):
                         os.remove(last_checkpoint_path)
                     self.save_checkpoint(output_directory,
@@ -154,6 +158,12 @@ class Train_loop:
                                          validation_losses, 
                                          validation_steps)
                     last_checkpoint_path = os.path.join(output_directory, f"checkpoint-{self.step}.pt")
+                else:
+                    no_improve_counter += 1
+                    print(f"No improvement ({no_improve_counter}/{self.max_no_improve})")
+                    if no_improve_counter >= self.max_no_improve:
+                        print(f"Early stopping triggered: validation loss did not improve {self.max_no_improve} successive times.")
+                        break
             else :
                 print(f"iteration {self.step} | training loss : {train_loss:.4f} | learning rate: {lr_current:.4e}")
         print("Training end")
