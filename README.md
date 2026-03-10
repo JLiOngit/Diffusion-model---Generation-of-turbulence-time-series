@@ -120,7 +120,7 @@ In our implementation, the 1D U-Net is trained to predict the noise $\epsilon_\t
 
 $$L_{simple}(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \left\| \epsilon - \epsilon_\theta(x_t, t) \right\|^2 \right]$$
 
-![''](results/train_validation_losses.png)
+![''](results/mse_losses.png)
 
 Once the model is trained, we can generate new turbulent trajectories by **starting from pure Gaussian noise** and iteratively applying the reverse diffusion process. 
 
