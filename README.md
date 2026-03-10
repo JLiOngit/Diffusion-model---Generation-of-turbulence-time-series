@@ -55,7 +55,7 @@ A subset of **768 one-dimensional (1D) turbulent velocity trajectories** was mad
 Each trajectory was sampled at a temporal resolution of $\Delta t \simeq 0.1\,\tau_\eta
 $ where $\tau_\eta$ is the Kolmogorov time scale. This corresponds to **2,000 time steps per trajectory**, corresponding to $T \simeq 200\,\tau_\eta$ of Lagrangian evolution.
 
-![''](plots/time_series.png)
+![''](results/time_series.png)
 
 ## Turbulence properties
 
@@ -63,7 +63,7 @@ $ where $\tau_\eta$ is the Kolmogorov time scale. This corresponds to **2,000 ti
 
 The Probability Density Function (PDF) of velocity increments  $\delta_\tau u = u(+\tau) - u(t)$ measures the likelihood of observing a given change in velocity over a time lag $\tau$.
 
-![''](plots/increments.png)
+![''](results/increments.png)
 
 The shape of the PDF changes with the scale $\tau$:
 - **Large scales $\tau$**: the PDF is close to Gaussian so velocity variations are relatively smooth and predictable.
@@ -79,7 +79,7 @@ For $p=2$, $S_2(\tau)$ represents the energy associated with fluctuations at sca
 The **generalized flatness of order \(p\)** defined as $F_p(\tau) = \frac{S_p(\tau)}{[S_ (\tau)]^{p/2}}$ measures the **degree of intermittency**: how much the distribution of increments deviates from Gaussian behavior. Large $F_p(\tau)$ at small $\tau$ indicates frequent **extreme events** and **strong small-scale turbulent bursts**.
 
 
-![''](plots/structure_flatness.png)
+![''](results/structure_flatness.png)
 
 ## Results
 
@@ -104,12 +104,12 @@ $$q(x_t | x_{t-1}) := \mathcal{N}(x_t; \sqrt{1 - \beta_t} x_{t-1}, \beta_t I)$$
 We defined and displayed different variance schedulers. 
 We decided to use a **linear scheduler** and **T = 800 diffusion step**s after few experiences showing a lower loss from the model
 
-![Different variance schedulers](plots/variance_scheduler.png)
+![Different variance schedulers](results/variance_scheduler.png)
 
 
 This reflects **how information gradually dissipates**. In addition, we displayed the evolution of the time series and its statistical properties at different diffusion steps in order to visualise the forward process of the diffusion model.
 
-![Forward diffusion process](plots/forward.png)
+![Forward diffusion process](results/forward.png)
 
 ### 2. Reverse Denoising Process
 The generative model learns to reverse the diffusion by approximating the conditional distribution $q(x_{t-1} | x_t)$. We use a learned model $p_\theta$:
@@ -120,7 +120,7 @@ In our implementation, the 1D U-Net is trained to predict the noise $\epsilon_\t
 
 $$L_{simple}(\theta) = \mathbb{E}_{t, x_0, \epsilon} \left[ \left\| \epsilon - \epsilon_\theta(x_t, t) \right\|^2 \right]$$
 
-![''](plots/train_validation_losses.png)
+![''](results/train_validation_losses.png)
 
 Once the model is trained, we can generate new turbulent trajectories by **starting from pure Gaussian noise** and iteratively applying the reverse diffusion process. 
 
@@ -134,15 +134,15 @@ $$x_{t-1} = \mu_\theta(x_t, t) + \beta_t \mathbf{z}, \quad \mathbf{z} \sim \math
 
 We show the backward diffusion process at different steps, illustrating how the model progressively removes noise to generate realistic turbulent trajectories.
 
-![''](plots/backward.png)
+![''](results/backward.png)
 
 Although the model is able to generate trajectories from pure Gaussian noise, some residual noise remains in the final samples. Further modifications and experiments could be explored to improve the model's performance.
 
 A total of **500 trajectories were generated**. These trajectories are used to compute the previously turbulence metrics and to evaluate how well the model reproduces the key characteristics of the turbulent flow.
 
-![''](plots/samples_increments.jpg)
+![''](results/samples_increments.jpg)
 
-![''](plots/samples_structure_flatness.jpg)
+![''](results/samples_structure_flatness.jpg)
 
 # **Reference**
 
